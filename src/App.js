@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- Config ---
-// PASTE YOUR LIVE RENDER URL HERE
-const BACKEND_URL = 'https://predictions-backend-api.onrender.com'; 
+const BACKEND_URL = 'https://predictions-backend-api.onrender.com';
 
 // --- Data for Dropdowns ---
-const premierLeagueTeams = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Ipswich Town", "Leicester City", "Liverpool", "Manchester City", "Manchester United", "Newcastle United", "Nottingham Forest", "Southampton", "Tottenham Hotspur", "West Ham United", "Wolverhampton Wanderers"];
+// UPDATED for 2025/26 Season
+const premierLeagueTeams = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Leeds United", "Liverpool", "Manchester City", "Manchester United", "Newcastle United", "Nottingham Forest", "Sunderland", "Tottenham Hotspur", "West Ham United", "Wolverhampton Wanderers"];
 const goldenBootContenders = ["Erling Haaland", "Cole Palmer", "Alexander Isak", "Ollie Watkins", "Phil Foden", "Dominic Solanke", "Mohamed Salah", "Son Heung-min", "Bukayo Saka", "Jarrod Bowen", "Jean-Philippe Mateta", "Nicolas Jackson", "Darwin Núñez", "Christopher Nkunku", "Ivan Toney", "Kai Havertz", "Julian Alvarez", "Rasmus Højlund", "Diogo Jota", "Marcus Rashford", "Richarlison", "Evan Ferguson", "Yoane Wissa", "Hwang Hee-chan", "Other (Please Specify)"];
-const premierLeagueManagers = ["Mikel Arteta", "Unai Emery", "Andoni Iraola", "Thomas Frank", "Fabian Hürzeler", "Enzo Maresca", "Oliver Glasner", "Sean Dyche", "Marco Silva", "Kieran McKenna", "Steve Cooper", "Arne Slot", "Pep Guardiola", "Erik ten Hag", "Eddie Howe", "Nuno Espírito Santo", "Russell Martin", "Ange Postecoglou", "Julen Lopetegui", "Gary O'Neil"];
+// UPDATED for 2025/26 Season
+const premierLeagueManagers = ["Mikel Arteta", "Unai Emery", "Andoni Iraola", "Keith Andrews", "Fabian Hürzeler", "Scott Parker", "Enzo Maresca", "Oliver Glasner", "David Moyes", "Marco Silva", "Daniel Farke", "Arne Slot", "Pep Guardiola", "Ruben Amorim", "Eddie Howe", "Nuno Espírito Santo", "Régis Le Bris", "Thomas Frank", "Graham Potter", "Vítor Pereira"];
 
-const PENALTY_POINTS = -3;
+
 const DEADLINE_HOUR_OFFSET = 1;
 
 // --- Child Components ---
@@ -502,7 +503,7 @@ export default function App() {
                 </header>
 
                 <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg-col-span-2 space-y-8">
+                    <div className="lg:col-span-2 space-y-8">
                         <div className="bg-white p-6 rounded-lg shadow-lg text-center">
                              <h2 className="text-2xl font-semibold mb-2">Season Prophecies</h2>
                              <p className="text-gray-600 mb-4">{propheciesLocked ? "Your prophecies are locked in for the season!" : "Make your season-long predictions before the first gameweek!"}</p>
