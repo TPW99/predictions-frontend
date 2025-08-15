@@ -207,7 +207,7 @@ const Fixture = ({ fixture, prediction, onPredictionChange, isLocked, joker, onJ
                         ${joker.isActive ? 'bg-yellow-400 text-black ring-2 ring-yellow-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}
                         disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                    � {joker.isActive ? 'Joker Active' : 'Play Joker'}
+                    🃏 {joker.isActive ? 'Joker Active' : 'Play Joker'}
                 </button>
             </div>
         </div>
