@@ -57,7 +57,7 @@ const AuthForm = ({ isLogin, onSubmit, onToggle, message }) => {
 };
 
 
-const Countdown = ({ deadline }) => {
+const Countdown = ({ deadline, onDeadlinePass }) => {
     const [timeLeft, setTimeLeft] = useState('');
     const [isExpired, setIsExpired] = useState(false);
 
@@ -72,6 +72,7 @@ const Countdown = ({ deadline }) => {
                 setTimeLeft("DEADLINE PASSED");
                 if (!isExpired) {
                     setIsExpired(true);
+                    if(onDeadlinePass) onDeadlinePass();
                 }
             } else {
                 const days = Math.floor(distance / (1000 * 60 * 60 * 24));
@@ -82,7 +83,7 @@ const Countdown = ({ deadline }) => {
             }
         }, 1000);
         return () => clearInterval(interval);
-    }, [deadline, isExpired]);
+    }, [deadline, isExpired, onDeadlinePass]);
 
     return (
         <div className="text-center">
@@ -206,7 +207,7 @@ const Fixture = ({ fixture, prediction, onPredictionChange, isLocked, joker, onJ
                         ${joker.isActive ? 'bg-yellow-400 text-black ring-2 ring-yellow-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}
                         disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                    🃏 {joker.isActive ? 'Joker Active' : 'Play Joker'}
+                    � {joker.isActive ? 'Joker Active' : 'Play Joker'}
                 </button>
             </div>
         </div>
@@ -324,7 +325,7 @@ export default function App() {
                 
                 // Group fixtures by date
                 const groups = fetchedFixtures.reduce((acc, fixture) => {
-                    const date = new Date(fixture.kickoffTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    const date = new Date(fixture.kickoffTime).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                     if (!acc[date]) {
                         acc[date] = { fixtures: [], deadline: null };
                     }
