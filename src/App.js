@@ -57,7 +57,7 @@ const AuthForm = ({ isLogin, onSubmit, onToggle, message }) => {
 };
 
 
-const Countdown = ({ deadline, onDeadlinePass }) => {
+const Countdown = ({ deadline }) => {
     const [timeLeft, setTimeLeft] = useState('');
     const [isExpired, setIsExpired] = useState(false);
 
@@ -72,18 +72,17 @@ const Countdown = ({ deadline, onDeadlinePass }) => {
                 setTimeLeft("DEADLINE PASSED");
                 if (!isExpired) {
                     setIsExpired(true);
-                    onDeadlinePass();
                 }
             } else {
                 const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                 const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-                setTimeLeft(`${days}d ${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`);
+                setTimeLeft(`${days > 0 ? days + 'd ' : ''}${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`);
             }
         }, 1000);
         return () => clearInterval(interval);
-    }, [deadline, onDeadlinePass, isExpired]);
+    }, [deadline, isExpired]);
 
     return (
         <div className="text-center">
@@ -226,14 +225,11 @@ export default function App() {
     
     // Game State
     const [isLoading, setIsLoading] = useState(true);
-    const [fixtures, setFixtures] = useState([]);
+    const [groupedFixtures, setGroupedFixtures] = useState({});
     const [leaderboard, setLeaderboard] = useState([]);
     const [predictions, setPredictions] = useState({});
-    const [gameweekDeadline, setGameweekDeadline] = useState(null);
-    const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
     const [message, setMessage] = useState('');
     const [hasSubmitted, setHasSubmitted] = useState(false);
-    const [hasRevealed, setHasRevealed] = useState(false);
     const [showPropheciesModal, setShowPropheciesModal] = useState(false);
     const [prophecies, setProphecies] = useState({ winner: '', relegation: ['', '', ''], goldenBoot: '', firstSacking: '', goldenBootOther: '' });
     const [propheciesLocked, setPropheciesLocked] = useState(false);
@@ -241,7 +237,7 @@ export default function App() {
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000 * 30); // Update time every 30 seconds
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000 * 30);
         return () => clearInterval(timer);
     }, []);
 
@@ -326,7 +322,23 @@ export default function App() {
                     api.fetchLeaderboard()
                 ]);
                 
-                setFixtures(fetchedFixtures);
+                // Group fixtures by date
+                const groups = fetchedFixtures.reduce((acc, fixture) => {
+                    const date = new Date(fixture.kickoffTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    if (!acc[date]) {
+                        acc[date] = { fixtures: [], deadline: null };
+                    }
+                    acc[date].fixtures.push(fixture);
+                    return acc;
+                }, {});
+
+                // Calculate deadline for each group
+                for (const date in groups) {
+                    const firstKickoff = new Date(groups[date].fixtures[0].kickoffTime);
+                    groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
+                }
+                setGroupedFixtures(groups);
+                
                 setLeaderboard(fetchedLeaderboard);
 
                 const initialPreds = {};
@@ -352,10 +364,6 @@ export default function App() {
                     usedInSeason: userData.chips.jokerUsedInSeason || false
                 });
 
-                if (fetchedFixtures.length > 0) {
-                    const deadline = new Date(new Date(fetchedFixtures[0].kickoffTime).getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
-                    setGameweekDeadline(deadline);
-                }
             } catch (error) {
                 console.error("Error loading game data:", error);
                 setMessage({type: 'error', text: 'Could not load game data.'});
@@ -372,11 +380,16 @@ export default function App() {
         const currentToken = localStorage.getItem('token');
         if (currentToken) {
             setToken(currentToken);
-            loadGameData(currentToken);
         } else {
             setIsLoading(false);
         }
-    }, [loadGameData]);
+    }, []);
+
+    useEffect(() => {
+        if (token) {
+            loadGameData(token);
+        }
+    }, [token, loadGameData]);
 
     const handleRegister = async (formData) => {
         try {
@@ -441,7 +454,8 @@ export default function App() {
     };
 
     const handleSubmit = async () => {
-        const isAllFilled = fixtures.every(f => predictions[f._id].homeScore !== '' && predictions[f._id].awayScore !== '');
+        const allFixtures = Object.values(groupedFixtures).flatMap(g => g.fixtures);
+        const isAllFilled = allFixtures.every(f => predictions[f._id].homeScore !== '' && predictions[f._id].awayScore !== '');
         if (!isAllFilled) {
             setMessage({ type: 'error', text: 'Please fill in all score predictions.' });
             return;
@@ -453,8 +467,7 @@ export default function App() {
             if (joker.fixtureId) {
                 setJoker(prev => ({ ...prev, usedInSeason: true }));
             }
-            const wasLate = new Date(result.submittedAt) > gameweekDeadline;
-            setMessage({ type: 'success', text: `Predictions submitted! ${wasLate ? 'A penalty will be applied.' : 'Good luck!'}` });
+            setMessage({ type: 'success', text: `Predictions submitted! Good luck!` });
         } catch(error) {
             console.error("Error saving predictions:", error);
             setMessage({type: 'error', text: 'Failed to save predictions.'});
@@ -467,14 +480,9 @@ export default function App() {
     };
 
     const handleReveal = async () => {
-        if (!hasSubmitted) {
-            setMessage({ type: 'error', text: 'You must submit your predictions first!' });
-            return;
-        }
         try {
             const result = await api.scoreGameweek();
             setMessage({ type: 'success', text: result.message });
-            setHasRevealed(true);
             await loadGameData(token);
         } catch(error) {
             console.error("Error revealing scores:", error);
@@ -484,14 +492,6 @@ export default function App() {
 
     const hasJokerBeenPlayedThisWeek = useMemo(() => !!joker.fixtureId, [joker.fixtureId]);
     
-    const hardDeadline = useMemo(() => {
-        if (!gameweekDeadline) return null;
-        return new Date(gameweekDeadline.getTime() + 60 * 60 * 1000);
-    }, [gameweekDeadline]);
-
-    const isGracePeriodActive = isDeadlinePassed && currentTime < hardDeadline;
-    const isSubmissionLocked = currentTime > hardDeadline;
-
     if (isLoading) {
         return <div className="bg-gray-100 min-h-screen flex items-center justify-center"><p className="text-2xl font-semibold">Loading...</p></div>;
     }
@@ -518,7 +518,15 @@ export default function App() {
             <div className="container mx-auto p-4 md:p-8">
                 <header className="flex flex-wrap justify-between items-center mb-8 gap-4">
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Welcome, {user?.name}!</h1>
-                    <button onClick={handleLogout} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600">Logout</button>
+                    <div>
+                        <button onClick={hasSubmitted ? handleEdit : handleSubmit} className={`${hasSubmitted ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg transition duration-300 shadow-md`}>
+                            {hasSubmitted ? 'Edit All' : 'Submit All'}
+                        </button>
+                        <button onClick={handleReveal} className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300 shadow-md ml-2">
+                            Refresh Scores
+                        </button>
+                        <button onClick={handleLogout} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 ml-2">Logout</button>
+                    </div>
                 </header>
 
                 <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -532,35 +540,24 @@ export default function App() {
                         </div>
 
                         <div className="bg-white p-6 rounded-lg shadow-lg">
-                            <div className="flex flex-wrap justify-between items-center border-b pb-4 mb-6 gap-4">
-                                 <h2 className="text-2xl font-semibold">Gameweek 1</h2>
-                                 {gameweekDeadline && <Countdown deadline={gameweekDeadline} onDeadlinePass={() => setIsDeadlinePassed(true)} />}
-                                 <div>
-                                    <button 
-                                        onClick={hasSubmitted ? handleEdit : handleSubmit} 
-                                        disabled={isSubmissionLocked} 
-                                        className={`${hasSubmitted ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg transition duration-300 shadow-md disabled:opacity-50 disabled:cursor-not-allowed`}
-                                    >
-                                        {hasSubmitted ? 'Edit Predictions' : 'Submit'}
-                                    </button>
-                                    <button 
-                                        onClick={handleReveal} 
-                                        disabled={hasRevealed || !hasSubmitted} 
-                                        className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300 shadow-md ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        Reveal Scores
-                                    </button>
-                                </div>
-                            </div>
-                            {isGracePeriodActive && (
-                                <div className="text-center mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
-                                    <p className="font-semibold text-yellow-800">The deadline has passed, but you are in a 1-hour grace period. Any submissions will receive a 3-point penalty.</p>
-                                </div>
-                            )}
-                            {message.text && <div className={`text-center mb-4 font-semibold ${message.type === 'error' ? 'text-red-500' : 'text-blue-500'}`}>{message.text}</div>}
-                            <div className="space-y-6">
-                               {fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isSubmissionLocked || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
-                            </div>
+                             <h2 className="text-2xl font-semibold mb-6 border-b pb-4">Gameweek 1</h2>
+                             {message.text && <div className={`text-center mb-4 font-semibold ${message.type === 'error' ? 'text-red-500' : 'text-blue-500'}`}>{message.text}</div>}
+                             <div className="space-y-8">
+                                {Object.entries(groupedFixtures).map(([date, group]) => {
+                                    const isDayLocked = currentTime > group.deadline;
+                                    return (
+                                        <div key={date}>
+                                            <div className="flex justify-between items-center mb-4 p-2 bg-gray-100 rounded-md">
+                                                <h3 className="text-xl font-bold">{date}</h3>
+                                                <Countdown deadline={group.deadline} />
+                                            </div>
+                                            <div className="space-y-6">
+                                                {group.fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isDayLocked || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                             </div>
                         </div>
                     </div>
                     <div className="bg-white p-6 rounded-lg shadow-lg">
