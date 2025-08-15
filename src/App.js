@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- Config ---
-const BACKEND_URL = 'https://predictions-backend-api.onrender.com';
+const BACKEND_URL = 'https://predictions-backend-api.onrender.com'; 
 
 // --- Data for Dropdowns ---
-// UPDATED for 2025/26 Season
 const premierLeagueTeams = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Leeds United", "Liverpool", "Manchester City", "Manchester United", "Newcastle United", "Nottingham Forest", "Sunderland", "Tottenham Hotspur", "West Ham United", "Wolverhampton Wanderers"];
 const goldenBootContenders = ["Erling Haaland", "Cole Palmer", "Alexander Isak", "Ollie Watkins", "Phil Foden", "Dominic Solanke", "Mohamed Salah", "Son Heung-min", "Bukayo Saka", "Jarrod Bowen", "Jean-Philippe Mateta", "Nicolas Jackson", "Darwin Núñez", "Christopher Nkunku", "Ivan Toney", "Kai Havertz", "Julian Alvarez", "Rasmus Højlund", "Diogo Jota", "Marcus Rashford", "Richarlison", "Evan Ferguson", "Yoane Wissa", "Hwang Hee-chan", "Other (Please Specify)"];
-// UPDATED for 2025/26 Season
 const premierLeagueManagers = ["Mikel Arteta", "Unai Emery", "Andoni Iraola", "Keith Andrews", "Fabian Hürzeler", "Scott Parker", "Enzo Maresca", "Oliver Glasner", "David Moyes", "Marco Silva", "Daniel Farke", "Arne Slot", "Pep Guardiola", "Ruben Amorim", "Eddie Howe", "Nuno Espírito Santo", "Régis Le Bris", "Thomas Frank", "Graham Potter", "Vítor Pereira"];
-
 
 const DEADLINE_HOUR_OFFSET = 1;
 
@@ -228,7 +225,6 @@ export default function App() {
     const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
     const [message, setMessage] = useState('');
     const [hasSubmitted, setHasSubmitted] = useState(false);
-    const [hasRevealed, setHasRevealed] = useState(false);
     const [showPropheciesModal, setShowPropheciesModal] = useState(false);
     const [prophecies, setProphecies] = useState({ winner: '', relegation: ['', '', ''], goldenBoot: '', firstSacking: '', goldenBootOther: '' });
     const [propheciesLocked, setPropheciesLocked] = useState(false);
@@ -526,10 +522,10 @@ export default function App() {
                                     </button>
                                     <button 
                                         onClick={handleReveal} 
-                                        disabled={hasRevealed || !hasSubmitted} 
+                                        disabled={!isDeadlinePassed || hasRevealed} 
                                         className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300 shadow-md ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        Reveal
+                                        Reveal Scores
                                     </button>
                                 </div>
                             </div>
