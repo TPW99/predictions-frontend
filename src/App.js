@@ -233,6 +233,7 @@ export default function App() {
     const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
     const [message, setMessage] = useState('');
     const [hasSubmitted, setHasSubmitted] = useState(false);
+    const [hasRevealed, setHasRevealed] = useState(false); // <-- FIXED: Was missing
     const [showPropheciesModal, setShowPropheciesModal] = useState(false);
     const [prophecies, setProphecies] = useState({ winner: '', relegation: ['', '', ''], goldenBoot: '', firstSacking: '', goldenBootOther: '' });
     const [propheciesLocked, setPropheciesLocked] = useState(false);
