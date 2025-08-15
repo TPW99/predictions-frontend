@@ -231,7 +231,6 @@ export default function App() {
     const [predictions, setPredictions] = useState({});
     const [message, setMessage] = useState('');
     const [hasSubmitted, setHasSubmitted] = useState(false);
-    const [hasRevealed, setHasRevealed] = useState(false);
     const [showPropheciesModal, setShowPropheciesModal] = useState(false);
     const [prophecies, setProphecies] = useState({ winner: '', relegation: ['', '', ''], goldenBoot: '', firstSacking: '', goldenBootOther: '' });
     const [propheciesLocked, setPropheciesLocked] = useState(false);
@@ -337,7 +336,23 @@ export default function App() {
                 // Calculate deadline for each group
                 for (const date in groups) {
                     const firstKickoff = new Date(groups[date].fixtures[0].kickoffTime);
-                    groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
+                    const kickoffDay = firstKickoff.getDate();
+                    const kickoffMonth = firstKickoff.getMonth();
+                    const kickoffYear = firstKickoff.getFullYear();
+                    const today = new Date();
+
+                    // Check if the match day is today
+                    if (
+                        kickoffDay === today.getDate() &&
+                        kickoffMonth === today.getMonth() &&
+                        kickoffYear === today.getFullYear()
+                    ) {
+                        // For today's game, set the deadline to the kickoff time (offset = 0)
+                        groups[date].deadline = firstKickoff;
+                    } else {
+                        // For all other days, keep the 1-hour offset
+                        groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
+                    }
                 }
                 setGroupedFixtures(groups);
                 
