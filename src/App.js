@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- Config ---
+// PASTE YOUR LIVE RENDER URL HERE
 const BACKEND_URL = 'https://predictions-backend-api.onrender.com'; 
 
 // --- Data for Dropdowns ---
 const premierLeagueTeams = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Leeds United", "Liverpool", "Manchester City", "Manchester United", "Newcastle United", "Nottingham Forest", "Sunderland", "Tottenham Hotspur", "West Ham United", "Wolverhampton Wanderers"];
-// UPDATED Golden Boot Contenders List
 const goldenBootContenders = [
     "Alexander Isak", "Benjamin Sesko", "Bryan Mbeumo", "Bukayo Saka", "Christopher Nkunku",
     "Cole Palmer", "Dominic Solanke", "Erling Haaland", "Evan Ferguson", "Hugo Ekitike",
@@ -233,7 +233,7 @@ export default function App() {
     const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
     const [message, setMessage] = useState('');
     const [hasSubmitted, setHasSubmitted] = useState(false);
-    const [hasRevealed, setHasRevealed] = useState(false); // <-- FIXED: Was missing
+    const [hasRevealed, setHasRevealed] = useState(false);
     const [showPropheciesModal, setShowPropheciesModal] = useState(false);
     const [prophecies, setProphecies] = useState({ winner: '', relegation: ['', '', ''], goldenBoot: '', firstSacking: '', goldenBootOther: '' });
     const [propheciesLocked, setPropheciesLocked] = useState(false);
