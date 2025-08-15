@@ -238,6 +238,12 @@ export default function App() {
     const [prophecies, setProphecies] = useState({ winner: '', relegation: ['', '', ''], goldenBoot: '', firstSacking: '', goldenBootOther: '' });
     const [propheciesLocked, setPropheciesLocked] = useState(false);
     const [joker, setJoker] = useState({ fixtureId: null, usedInSeason: false });
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000 * 30); // Update time every 30 seconds
+        return () => clearInterval(timer);
+    }, []);
 
     const api = useMemo(() => ({
         register: async (userData) => {
@@ -478,6 +484,14 @@ export default function App() {
 
     const hasJokerBeenPlayedThisWeek = useMemo(() => !!joker.fixtureId, [joker.fixtureId]);
     
+    const hardDeadline = useMemo(() => {
+        if (!gameweekDeadline) return null;
+        return new Date(gameweekDeadline.getTime() + 60 * 60 * 1000);
+    }, [gameweekDeadline]);
+
+    const isGracePeriodActive = isDeadlinePassed && currentTime < hardDeadline;
+    const isSubmissionLocked = currentTime > hardDeadline;
+
     if (isLoading) {
         return <div className="bg-gray-100 min-h-screen flex items-center justify-center"><p className="text-2xl font-semibold">Loading...</p></div>;
     }
@@ -524,23 +538,28 @@ export default function App() {
                                  <div>
                                     <button 
                                         onClick={hasSubmitted ? handleEdit : handleSubmit} 
-                                        disabled={isDeadlinePassed} 
+                                        disabled={isSubmissionLocked} 
                                         className={`${hasSubmitted ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg transition duration-300 shadow-md disabled:opacity-50 disabled:cursor-not-allowed`}
                                     >
                                         {hasSubmitted ? 'Edit Predictions' : 'Submit'}
                                     </button>
                                     <button 
                                         onClick={handleReveal} 
-                                        disabled={!isDeadlinePassed || hasRevealed} 
+                                        disabled={hasRevealed || !hasSubmitted} 
                                         className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300 shadow-md ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         Reveal Scores
                                     </button>
                                 </div>
                             </div>
+                            {isGracePeriodActive && (
+                                <div className="text-center mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                                    <p className="font-semibold text-yellow-800">The deadline has passed, but you are in a 1-hour grace period. Any submissions will receive a 3-point penalty.</p>
+                                </div>
+                            )}
                             {message.text && <div className={`text-center mb-4 font-semibold ${message.type === 'error' ? 'text-red-500' : 'text-blue-500'}`}>{message.text}</div>}
                             <div className="space-y-6">
-                               {fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isDeadlinePassed || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
+                               {fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isSubmissionLocked || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
                             </div>
                         </div>
                     </div>
