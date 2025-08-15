@@ -207,7 +207,7 @@ const Fixture = ({ fixture, prediction, onPredictionChange, isLocked, joker, onJ
                         ${joker.isActive ? 'bg-yellow-400 text-black ring-2 ring-yellow-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}
                         disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                    � {joker.isActive ? 'Joker Active' : 'Play Joker'}
+                    🃏 {joker.isActive ? 'Joker Active' : 'Play Joker'}
                 </button>
             </div>
         </div>
@@ -463,7 +463,7 @@ export default function App() {
         }
         
         try {
-            const result = await api.savePredictions({ predictions, jokerFixtureId: joker.fixtureId });
+            await api.savePredictions({ predictions, jokerFixtureId: joker.fixtureId });
             setHasSubmitted(true);
             if (joker.fixtureId) {
                 setJoker(prev => ({ ...prev, usedInSeason: true }));
@@ -484,6 +484,7 @@ export default function App() {
         try {
             const result = await api.scoreGameweek();
             setMessage({ type: 'success', text: result.message });
+            setHasRevealed(true);
             await loadGameData(token);
         } catch(error) {
             console.error("Error revealing scores:", error);
