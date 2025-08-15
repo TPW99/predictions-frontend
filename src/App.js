@@ -231,6 +231,7 @@ export default function App() {
     const [predictions, setPredictions] = useState({});
     const [message, setMessage] = useState('');
     const [hasSubmitted, setHasSubmitted] = useState(false);
+    const [hasRevealed, setHasRevealed] = useState(false);
     const [showPropheciesModal, setShowPropheciesModal] = useState(false);
     const [prophecies, setProphecies] = useState({ winner: '', relegation: ['', '', ''], goldenBoot: '', firstSacking: '', goldenBootOther: '' });
     const [propheciesLocked, setPropheciesLocked] = useState(false);
