@@ -5,7 +5,15 @@ const BACKEND_URL = 'https://predictions-backend-api.onrender.com';
 
 // --- Data for Dropdowns ---
 const premierLeagueTeams = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Leeds United", "Liverpool", "Manchester City", "Manchester United", "Newcastle United", "Nottingham Forest", "Sunderland", "Tottenham Hotspur", "West Ham United", "Wolverhampton Wanderers"];
-const goldenBootContenders = ["Erling Haaland", "Cole Palmer", "Alexander Isak", "Ollie Watkins", "Phil Foden", "Dominic Solanke", "Mohamed Salah", "Son Heung-min", "Bukayo Saka", "Jarrod Bowen", "Jean-Philippe Mateta", "Nicolas Jackson", "Darwin Núñez", "Christopher Nkunku", "Ivan Toney", "Kai Havertz", "Julian Alvarez", "Rasmus Højlund", "Diogo Jota", "Marcus Rashford", "Richarlison", "Evan Ferguson", "Yoane Wissa", "Hwang Hee-chan", "Other (Please Specify)"];
+// UPDATED Golden Boot Contenders List
+const goldenBootContenders = [
+    "Alexander Isak", "Benjamin Sesko", "Bryan Mbeumo", "Bukayo Saka", "Christopher Nkunku",
+    "Cole Palmer", "Dominic Solanke", "Erling Haaland", "Evan Ferguson", "Hugo Ekitike",
+    "Hwang Hee-chan", "Jarrod Bowen", "Jean-Philippe Mateta", "Julian Alvarez", "Kai Havertz",
+    "Matheus Cunha", "Nicolas Jackson", "Ollie Watkins", "Phil Foden", "Rasmus Højlund", 
+    "Viktor Gyökeres", "Yoane Wissa",
+    "Other (Please Specify)"
+];
 const premierLeagueManagers = ["Mikel Arteta", "Unai Emery", "Andoni Iraola", "Keith Andrews", "Fabian Hürzeler", "Scott Parker", "Enzo Maresca", "Oliver Glasner", "David Moyes", "Marco Silva", "Daniel Farke", "Arne Slot", "Pep Guardiola", "Ruben Amorim", "Eddie Howe", "Nuno Espírito Santo", "Régis Le Bris", "Thomas Frank", "Graham Potter", "Vítor Pereira"];
 
 const DEADLINE_HOUR_OFFSET = 1;
