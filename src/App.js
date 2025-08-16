@@ -323,7 +323,6 @@ export default function App() {
                     api.fetchLeaderboard()
                 ]);
                 
-                // Group fixtures by date
                 const groups = fetchedFixtures.reduce((acc, fixture) => {
                     const date = new Date(fixture.kickoffTime).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                     if (!acc[date]) {
@@ -333,26 +332,9 @@ export default function App() {
                     return acc;
                 }, {});
 
-                // Calculate deadline for each group
                 for (const date in groups) {
                     const firstKickoff = new Date(groups[date].fixtures[0].kickoffTime);
-                    const kickoffDay = firstKickoff.getDate();
-                    const kickoffMonth = firstKickoff.getMonth();
-                    const kickoffYear = firstKickoff.getFullYear();
-                    const today = new Date();
-
-                    // Check if the match day is today
-                    if (
-                        kickoffDay === today.getDate() &&
-                        kickoffMonth === today.getMonth() &&
-                        kickoffYear === today.getFullYear()
-                    ) {
-                        // For today's game, set the deadline to the kickoff time (offset = 0)
-                        groups[date].deadline = firstKickoff;
-                    } else {
-                        // For all other days, keep the 1-hour offset
-                        groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
-                    }
+                    groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
                 }
                 setGroupedFixtures(groups);
                 
@@ -471,7 +453,6 @@ export default function App() {
     };
 
     const handleSubmit = async () => {
-        // --- UPDATED: No longer checks if all fields are filled ---
         try {
             await api.savePredictions({ predictions, jokerFixtureId: joker.fixtureId });
             setHasSubmitted(true);
