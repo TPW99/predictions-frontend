@@ -326,7 +326,7 @@ export default function App() {
                 const groups = fetchedFixtures.reduce((acc, fixture) => {
                     const date = new Date(fixture.kickoffTime).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                     if (!acc[date]) {
-                        acc[date] = { fixtures: [], deadline: null };
+                        acc[date] = { fixtures: [], deadline: null, hardDeadline: null };
                     }
                     acc[date].fixtures.push(fixture);
                     return acc;
@@ -334,20 +334,8 @@ export default function App() {
 
                 for (const date in groups) {
                     const firstKickoff = new Date(groups[date].fixtures[0].kickoffTime);
-                    const kickoffDay = firstKickoff.getDate();
-                    const kickoffMonth = firstKickoff.getMonth();
-                    const kickoffYear = firstKickoff.getFullYear();
-                    const today = new Date();
-
-                    if (
-                        kickoffDay === today.getDate() &&
-                        kickoffMonth === today.getMonth() &&
-                        kickoffYear === today.getFullYear()
-                    ) {
-                        groups[date].deadline = firstKickoff;
-                    } else {
-                        groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
-                    }
+                    groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
+                    groups[date].hardDeadline = new Date(firstKickoff.getTime()); // Hard deadline is kickoff time
                 }
                 setGroupedFixtures(groups);
                 
@@ -549,13 +537,19 @@ export default function App() {
                              {message.text && <div className={`text-center mb-4 font-semibold ${message.type === 'error' ? 'text-red-500' : 'text-blue-500'}`}>{message.text}</div>}
                              <div className="space-y-8">
                                 {Object.entries(groupedFixtures).map(([date, group]) => {
-                                    const isDayLocked = currentTime > group.deadline;
+                                    const isDayLocked = currentTime > group.hardDeadline;
+                                    const isGracePeriod = currentTime > group.deadline && !isDayLocked;
                                     return (
                                         <div key={date}>
                                             <div className="flex justify-between items-center mb-4 p-2 bg-gray-100 rounded-md">
                                                 <h3 className="text-xl font-bold">{date}</h3>
                                                 <Countdown deadline={group.deadline} />
                                             </div>
+                                            {isGracePeriod && !hasSubmitted && (
+                                                <div className="text-center mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                                                    <p className="font-semibold text-yellow-800">The deadline has passed, but you are in a 1-hour grace period. Any submissions will receive a 3-point penalty.</p>
+                                                </div>
+                                            )}
                                             <div className="space-y-6">
                                                 {group.fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isDayLocked || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
                                             </div>
