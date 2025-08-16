@@ -334,7 +334,20 @@ export default function App() {
 
                 for (const date in groups) {
                     const firstKickoff = new Date(groups[date].fixtures[0].kickoffTime);
-                    groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
+                    const kickoffDay = firstKickoff.getDate();
+                    const kickoffMonth = firstKickoff.getMonth();
+                    const kickoffYear = firstKickoff.getFullYear();
+                    const today = new Date();
+
+                    if (
+                        kickoffDay === today.getDate() &&
+                        kickoffMonth === today.getMonth() &&
+                        kickoffYear === today.getFullYear()
+                    ) {
+                        groups[date].deadline = firstKickoff;
+                    } else {
+                        groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
+                    }
                 }
                 setGroupedFixtures(groups);
                 
@@ -512,7 +525,7 @@ export default function App() {
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Welcome, {user?.name}!</h1>
                     <div>
                         <button onClick={hasSubmitted ? handleEdit : handleSubmit} className={`${hasSubmitted ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg transition duration-300 shadow-md`}>
-                            {hasSubmitted ? 'Edit All' : 'Submit All'}
+                            {hasSubmitted ? 'Edit' : 'Submit'}
                         </button>
                         <button onClick={handleReveal} className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300 shadow-md ml-2">
                             Refresh Scores
