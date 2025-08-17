@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- Config ---
 // PASTE YOUR LIVE RENDER URL HERE
-const BACKEND_URL = 'https://predictions-backend-api.onrender.com'; 
+const BACKEND_URL = 'https://your-backend-url.onrender.com'; 
 
 // --- Data for Dropdowns ---
 const premierLeagueTeams = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Leeds United", "Liverpool", "Manchester City", "Manchester United", "Newcastle United", "Nottingham Forest", "Sunderland", "Tottenham Hotspur", "West Ham United", "Wolverhampton Wanderers"];
@@ -410,40 +410,32 @@ export default function App() {
     };
 
     const handleRegister = async (formData) => {
-        console.log("Registering with:", formData);
         try {
             const response = await api.register(formData);
             const data = await response.json();
             if (response.ok) {
-                console.log("Registration successful");
                 setAuthMessage({ type: 'success', text: data.message + ' Please log in.' });
                 setIsLoginView(true);
             } else {
-                console.log("Registration failed:", data.message);
                 setAuthMessage({ type: 'error', text: data.message });
             }
         } catch (error) {
-            console.error("Registration network error:", error);
             setAuthMessage({ type: 'error', text: 'Could not connect to the server.' });
         }
     };
 
     const handleLogin = async (formData) => {
-        console.log("Logging in with:", formData.email);
         try {
             const response = await api.login(formData);
             const data = await response.json();
             if (response.ok) {
-                console.log("Login successful, token received.");
                 localStorage.setItem('token', data.token);
                 setToken(data.token);
                 setAuthMessage('');
             } else {
-                console.log("Login failed:", data.message);
                 setAuthMessage({ type: 'error', text: data.message });
             }
         } catch (error) {
-            console.error("Login network error:", error);
             setAuthMessage({ type: 'error', text: 'Could not connect to the server.' });
         }
     };
