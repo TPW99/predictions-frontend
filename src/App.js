@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- Config ---
 // PASTE YOUR LIVE RENDER URL HERE
- const BACKEND_URL = 'https://predictions-backend-api.onrender.com'; 
+const BACKEND_URL = 'https://predictions-backend-api.onrender.com'; 
 
 // --- Data for Dropdowns ---
 const premierLeagueTeams = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Leeds United", "Liverpool", "Manchester City", "Manchester United", "Newcastle United", "Nottingham Forest", "Sunderland", "Tottenham Hotspur", "West Ham United", "Wolverhampton Wanderers"];
@@ -52,7 +52,6 @@ const AuthForm = ({ isLogin, onSubmit, onToggle, message }) => {
                     {isLogin ? 'Register' : 'Login'}
                 </button>
             </p>
-            <p className="text-xs text-gray-400 text-center mt-4">v2.1</p>
         </div>
     );
 };
@@ -227,23 +226,17 @@ export default function App() {
     
     // Game State
     const [isLoading, setIsLoading] = useState(true);
-    const [gameweeks, setGameweeks] = useState([]);
-    const [currentGameweek, setCurrentGameweek] = useState(null);
-    const [groupedFixtures, setGroupedFixtures] = useState({});
+    const [fixtures, setFixtures] = useState([]);
     const [leaderboard, setLeaderboard] = useState([]);
     const [predictions, setPredictions] = useState({});
+    const [gameweekDeadline, setGameweekDeadline] = useState(null);
+    const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
     const [message, setMessage] = useState('');
     const [hasSubmitted, setHasSubmitted] = useState(false);
     const [showPropheciesModal, setShowPropheciesModal] = useState(false);
     const [prophecies, setProphecies] = useState({ winner: '', relegation: ['', '', ''], goldenBoot: '', firstSacking: '', goldenBootOther: '' });
     const [propheciesLocked, setPropheciesLocked] = useState(false);
     const [joker, setJoker] = useState({ fixtureId: null, usedInSeason: false });
-    const [currentTime, setCurrentTime] = useState(new Date());
-
-    useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000 * 30);
-        return () => clearInterval(timer);
-    }, []);
 
     const api = useMemo(() => ({
         register: async (userData) => {
@@ -269,15 +262,9 @@ export default function App() {
             if (!response.ok) throw new Error('Failed to fetch user data');
             return await response.json();
         },
-        fetchFixtures: async (gameweek) => {
-            const url = gameweek ? `${BACKEND_URL}/api/fixtures/${gameweek}` : `${BACKEND_URL}/api/fixtures`;
-            const response = await fetch(url);
+        fetchFixtures: async () => {
+            const response = await fetch(`${BACKEND_URL}/api/fixtures`);
             if (!response.ok) throw new Error('Failed to fetch fixtures');
-            return await response.json();
-        },
-        fetchGameweeks: async () => {
-            const response = await fetch(`${BACKEND_URL}/api/gameweeks`);
-            if (!response.ok) throw new Error('Failed to fetch gameweeks');
             return await response.json();
         },
         fetchLeaderboard: async () => {
@@ -319,37 +306,21 @@ export default function App() {
         setUser(null);
     }, []);
 
-    const loadGameData = useCallback(async (currentToken, gameweek) => {
+    const loadGameData = useCallback(async (currentToken) => {
         if (currentToken) {
             setIsLoading(true);
             try {
                 const payload = JSON.parse(atob(currentToken.split('.')[1]));
                 setUser({ name: payload.name, id: payload.userId });
 
-                const [fixtureData, userData, fetchedLeaderboard, allGameweeks] = await Promise.all([
-                    api.fetchFixtures(gameweek),
+                const [fixtureData, userData, fetchedLeaderboard] = await Promise.all([
+                    api.fetchFixtures(),
                     api.getUserData(currentToken),
-                    api.fetchLeaderboard(),
-                    api.fetchGameweeks()
+                    api.fetchLeaderboard()
                 ]);
                 
-                const { fixtures: fetchedFixtures, gameweek: fetchedGameweek } = fixtureData;
-                setCurrentGameweek(fetchedGameweek);
-                setGameweeks(allGameweeks);
-
-                const groups = fetchedFixtures.reduce((acc, fixture) => {
-                    const date = new Date(fixture.kickoffTime).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                    if (!acc[date]) acc[date] = { fixtures: [], deadline: null };
-                    acc[date].fixtures.push(fixture);
-                    return acc;
-                }, {});
-
-                for (const date in groups) {
-                    const firstKickoff = new Date(groups[date].fixtures[0].kickoffTime);
-                    groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
-                }
-                setGroupedFixtures(groups);
-                
+                const { fixtures: fetchedFixtures } = fixtureData;
+                setFixtures(fetchedFixtures);
                 setLeaderboard(fetchedLeaderboard);
 
                 const initialPreds = {};
@@ -375,6 +346,10 @@ export default function App() {
                     usedInSeason: userData.chips.jokerUsedInSeason || false
                 });
 
+                if (fetchedFixtures.length > 0) {
+                    const deadline = new Date(new Date(fetchedFixtures[0].kickoffTime).getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
+                    setGameweekDeadline(deadline);
+                }
             } catch (error) {
                 console.error("Error loading game data:", error);
                 setMessage({type: 'error', text: 'Could not load game data.'});
@@ -398,17 +373,9 @@ export default function App() {
 
     useEffect(() => {
         if (token) {
-            loadGameData(token, currentGameweek);
+            loadGameData(token);
         }
-    }, [token, currentGameweek, loadGameData]);
-
-    const handleGameweekChange = (direction) => {
-        const currentIndex = gameweeks.indexOf(currentGameweek);
-        const newIndex = currentIndex + direction;
-        if (newIndex >= 0 && newIndex < gameweeks.length) {
-            setCurrentGameweek(gameweeks[newIndex]);
-        }
-    };
+    }, [token, loadGameData]);
 
     const handleRegister = async (formData) => {
         try {
@@ -495,14 +462,12 @@ export default function App() {
         try {
             const result = await api.scoreGameweek();
             setMessage({ type: 'success', text: result.message });
-            await loadGameData(token, currentGameweek);
+            await loadGameData(token);
         } catch(error) {
             console.error("Error revealing scores:", error);
             setMessage({type: 'error', text: 'Failed to reveal scores.'});
         }
     };
-
-    const hasJokerBeenPlayedThisWeek = useMemo(() => !!joker.fixtureId, [joker.fixtureId]);
     
     if (isLoading) {
         return <div className="bg-gray-100 min-h-screen flex items-center justify-center"><p className="text-2xl font-semibold">Loading...</p></div>;
@@ -552,34 +517,17 @@ export default function App() {
                         </div>
 
                         <div className="bg-white p-6 rounded-lg shadow-lg">
-                             <div className="flex justify-between items-center mb-6 border-b pb-4">
-                                <button onClick={() => handleGameweekChange(-1)} disabled={currentGameweek <= 1} className="px-4 py-2 bg-gray-200 rounded-md disabled:opacity-50">&lt; Prev</button>
-                                <h2 className="text-2xl font-semibold">Gameweek {currentGameweek}</h2>
-                                <button onClick={() => handleGameweekChange(1)} disabled={currentGameweek >= gameweeks.length} className="px-4 py-2 bg-gray-200 rounded-md disabled:opacity-50">Next &gt;</button>
-                             </div>
+                             <h2 className="text-2xl font-semibold mb-6 border-b pb-4">Gameweek 1</h2>
                              {message.text && <div className={`text-center mb-4 font-semibold ${message.type === 'error' ? 'text-red-500' : 'text-blue-500'}`}>{message.text}</div>}
-                             <div className="space-y-8">
-                                {Object.entries(groupedFixtures).map(([date, group]) => {
-                                    const isDayLocked = currentTime > group.deadline;
-                                    return (
-                                        <div key={date}>
-                                            <div className="flex justify-between items-center mb-4 p-2 bg-gray-100 rounded-md">
-                                                <h3 className="text-xl font-bold">{date}</h3>
-                                                <Countdown deadline={group.deadline} />
-                                            </div>
-                                            <div className="space-y-6">
-                                                {group.fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isDayLocked || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
-                                            </div>
-                                        </div>
-                                    )
-                                })}
+                             <div className="space-y-6">
+                               {fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isDeadlinePassed || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={false} isJokerUsedInSeason={joker.usedInSeason} />)}
                              </div>
                         </div>
                     </div>
                     <div className="bg-white p-6 rounded-lg shadow-lg">
                         <div className="flex justify-between items-center mb-6 border-b pb-4">
                             <h2 className="text-2xl font-semibold">Leaderboard</h2>
-                            <button onClick={() => loadGameData(token, currentGameweek)} className="text-sm bg-gray-200 hover:bg-gray-300 p-2 rounded-md">Refresh</button>
+                            <button onClick={() => loadGameData(token)} className="text-sm bg-gray-200 hover:bg-gray-300 p-2 rounded-md">Refresh</button>
                         </div>
                         <div className="space-y-4">
                             {leaderboard.map((player, index) => (
