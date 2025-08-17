@@ -245,7 +245,71 @@ export default function App() {
     }, []);
 
     const api = useMemo(() => ({
-        // ... (all api functions remain the same)
+        register: async (userData) => {
+            const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
+            });
+            return response;
+        },
+        login: async (credentials) => {
+            const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(credentials)
+            });
+            return response;
+        },
+        getUserData: async (authToken) => {
+            const response = await fetch(`${BACKEND_URL}/api/user/me`, {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch user data');
+            return await response.json();
+        },
+        fetchFixtures: async (gameweek) => {
+            const url = gameweek ? `${BACKEND_URL}/api/fixtures/${gameweek}` : `${BACKEND_URL}/api/fixtures`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch fixtures');
+            return await response.json();
+        },
+        fetchGameweeks: async () => {
+            const response = await fetch(`${BACKEND_URL}/api/gameweeks`);
+            if (!response.ok) throw new Error('Failed to fetch gameweeks');
+            return await response.json();
+        },
+        fetchLeaderboard: async () => {
+            const response = await fetch(`${BACKEND_URL}/api/leaderboard`);
+            if (!response.ok) throw new Error('Failed to fetch leaderboard');
+            return await response.json();
+        },
+        savePredictions: async (predictionsToSave) => {
+            const response = await fetch(`${BACKEND_URL}/api/predictions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(predictionsToSave)
+            });
+            if (!response.ok) throw new Error('Failed to save predictions');
+            return await response.json();
+        },
+        saveProphecies: async (propheciesToSave) => {
+            const response = await fetch(`${BACKEND_URL}/api/prophecies`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(propheciesToSave)
+            });
+            if (!response.ok) throw new Error('Failed to save prophecies');
+            return await response.json();
+        },
+        scoreGameweek: async () => {
+             const response = await fetch(`${BACKEND_URL}/api/admin/score-gameweek`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to score gameweek');
+            return await response.json();
+        }
     }), [token]);
     
     const handleLogout = useCallback(() => {
@@ -261,12 +325,11 @@ export default function App() {
                 const payload = JSON.parse(atob(currentToken.split('.')[1]));
                 setUser({ name: payload.name, id: payload.userId });
 
-                const fixtureUrl = gameweek ? `/api/fixtures/${gameweek}` : '/api/fixtures';
                 const [fixtureData, userData, fetchedLeaderboard, allGameweeks] = await Promise.all([
-                    fetch(`${BACKEND_URL}${fixtureUrl}`).then(res => res.json()),
+                    api.fetchFixtures(gameweek),
                     api.getUserData(currentToken),
                     api.fetchLeaderboard(),
-                    fetch(`${BACKEND_URL}/api/gameweeks`).then(res => res.json())
+                    api.fetchGameweeks()
                 ]);
                 
                 const { fixtures: fetchedFixtures, gameweek: fetchedGameweek } = fixtureData;
@@ -346,7 +409,6 @@ export default function App() {
         }
     };
 
-    // --- ADDED MISSING HANDLERS ---
     const handleRegister = async (formData) => {
         try {
             const response = await api.register(formData);
@@ -391,22 +453,56 @@ export default function App() {
     };
 
     const handleSaveProphecies = async (propheciesData) => {
-        // ... (logic from previous versions)
+        const finalProphecies = { ...propheciesData };
+        if (finalProphecies.goldenBoot === 'Other (Please Specify)') {
+            finalProphecies.goldenBoot = finalProphecies.goldenBootOther;
+        }
+        delete finalProphecies.goldenBootOther;
+
+        try {
+            await api.saveProphecies({ prophecies: finalProphecies });
+            setProphecies(propheciesData);
+            setPropheciesLocked(true);
+            setShowPropheciesModal(false);
+            setMessage({ type: 'success', text: 'Your season prophecies have been locked in!' });
+        } catch(error) {
+            console.error("Error saving prophecies:", error);
+            setMessage({type: 'error', text: 'Failed to save prophecies.'});
+        }
     };
 
     const handleSubmit = async () => {
-        // ... (logic from previous versions)
+        try {
+            await api.savePredictions({ predictions, jokerFixtureId: joker.fixtureId });
+            setHasSubmitted(true);
+            if (joker.fixtureId) {
+                setJoker(prev => ({ ...prev, usedInSeason: true }));
+            }
+            setMessage({ type: 'success', text: `Predictions submitted! Good luck!` });
+        } catch(error) {
+            console.error("Error saving predictions:", error);
+            setMessage({type: 'error', text: 'Failed to save predictions.'});
+        }
     };
     
     const handleEdit = () => {
-        // ... (logic from previous versions)
+        setHasSubmitted(false);
+        setMessage({ type: 'info', text: 'You can now edit your predictions.' });
     };
 
     const handleReveal = async () => {
-        // ... (logic from previous versions)
+        try {
+            const result = await api.scoreGameweek();
+            setMessage({ type: 'success', text: result.message });
+            await loadGameData(token, currentGameweek);
+        } catch(error) {
+            console.error("Error revealing scores:", error);
+            setMessage({type: 'error', text: 'Failed to reveal scores.'});
+        }
     };
-    // --- END OF ADDED HANDLERS ---
 
+    const hasJokerBeenPlayedThisWeek = useMemo(() => !!joker.fixtureId, [joker.fixtureId]);
+    
     if (isLoading) {
         return <div className="bg-gray-100 min-h-screen flex items-center justify-center"><p className="text-2xl font-semibold">Loading...</p></div>;
     }
@@ -433,18 +529,32 @@ export default function App() {
             <div className="container mx-auto p-4 md:p-8">
                 <header className="flex flex-wrap justify-between items-center mb-8 gap-4">
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Welcome, {user?.name}!</h1>
-                    {/* ... (header buttons) */}
+                    <div>
+                        <button onClick={hasSubmitted ? handleEdit : handleSubmit} className={`${hasSubmitted ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg transition duration-300 shadow-md`}>
+                            {hasSubmitted ? 'Edit' : 'Submit'}
+                        </button>
+                        <button onClick={handleReveal} className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300 shadow-md ml-2">
+                            Refresh Scores
+                        </button>
+                        <button onClick={handleLogout} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 ml-2">Logout</button>
+                    </div>
                 </header>
 
                 <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        {/* ... (prophecies section) */}
+                        <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+                             <h2 className="text-2xl font-semibold mb-2">Season Prophecies</h2>
+                             <p className="text-gray-600 mb-4">{propheciesLocked ? "Your prophecies are locked in for the season!" : "Make your season-long predictions before the first gameweek!"}</p>
+                             <button onClick={() => setShowPropheciesModal(true)} className="bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 shadow-md">
+                                {propheciesLocked ? "View Your Prophecies" : "Make Your Prophecies"}
+                             </button>
+                        </div>
 
                         <div className="bg-white p-6 rounded-lg shadow-lg">
                              <div className="flex justify-between items-center mb-6 border-b pb-4">
-                                <button onClick={() => handleGameweekChange(-1)} disabled={currentGameweek <= 1}>&lt; Prev</button>
+                                <button onClick={() => handleGameweekChange(-1)} disabled={currentGameweek <= 1} className="px-4 py-2 bg-gray-200 rounded-md disabled:opacity-50">&lt; Prev</button>
                                 <h2 className="text-2xl font-semibold">Gameweek {currentGameweek}</h2>
-                                <button onClick={() => handleGameweekChange(1)} disabled={currentGameweek >= gameweeks.length}>Next &gt;</button>
+                                <button onClick={() => handleGameweekChange(1)} disabled={currentGameweek >= gameweeks.length} className="px-4 py-2 bg-gray-200 rounded-md disabled:opacity-50">Next &gt;</button>
                              </div>
                              {message.text && <div className={`text-center mb-4 font-semibold ${message.type === 'error' ? 'text-red-500' : 'text-blue-500'}`}>{message.text}</div>}
                              <div className="space-y-8">
@@ -457,7 +567,7 @@ export default function App() {
                                                 <Countdown deadline={group.deadline} />
                                             </div>
                                             <div className="space-y-6">
-                                                {group.fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isDayLocked || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} />)}
+                                                {group.fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isDayLocked || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
                                             </div>
                                         </div>
                                     )
@@ -466,7 +576,21 @@ export default function App() {
                         </div>
                     </div>
                     <div className="bg-white p-6 rounded-lg shadow-lg">
-                        {/* ... (leaderboard section) */}
+                        <div className="flex justify-between items-center mb-6 border-b pb-4">
+                            <h2 className="text-2xl font-semibold">Leaderboard</h2>
+                            <button onClick={() => loadGameData(token, currentGameweek)} className="text-sm bg-gray-200 hover:bg-gray-300 p-2 rounded-md">Refresh</button>
+                        </div>
+                        <div className="space-y-4">
+                            {leaderboard.map((player, index) => (
+                                <div key={player._id || index} className={`flex items-center justify-between p-3 rounded-lg ${player.name === user?.name ? 'bg-blue-100' : 'bg-gray-50'}`}>
+                                    <div className="flex items-center">
+                                        <span className="font-bold text-lg mr-4 w-6 text-center">{index + 1}</span>
+                                        <p className="font-semibold">{player.name}</p>
+                                    </div>
+                                    <p className="font-bold text-lg">{player.score} pts</p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </main>
             </div>
