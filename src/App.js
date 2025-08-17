@@ -226,17 +226,21 @@ export default function App() {
     
     // Game State
     const [isLoading, setIsLoading] = useState(true);
-    const [fixtures, setFixtures] = useState([]);
+    const [groupedFixtures, setGroupedFixtures] = useState({});
     const [leaderboard, setLeaderboard] = useState([]);
     const [predictions, setPredictions] = useState({});
-    const [gameweekDeadline, setGameweekDeadline] = useState(null);
-    const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
     const [message, setMessage] = useState('');
     const [hasSubmitted, setHasSubmitted] = useState(false);
     const [showPropheciesModal, setShowPropheciesModal] = useState(false);
     const [prophecies, setProphecies] = useState({ winner: '', relegation: ['', '', ''], goldenBoot: '', firstSacking: '', goldenBootOther: '' });
     const [propheciesLocked, setPropheciesLocked] = useState(false);
     const [joker, setJoker] = useState({ fixtureId: null, usedInSeason: false });
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000 * 30);
+        return () => clearInterval(timer);
+    }, []);
 
     const api = useMemo(() => ({
         register: async (userData) => {
@@ -320,7 +324,23 @@ export default function App() {
                 ]);
                 
                 const { fixtures: fetchedFixtures } = fixtureData;
-                setFixtures(fetchedFixtures);
+                
+                const groups = fetchedFixtures.reduce((acc, fixture) => {
+                    const date = new Date(fixture.kickoffTime).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    if (!acc[date]) {
+                        acc[date] = { fixtures: [], deadline: null, hardDeadline: null };
+                    }
+                    acc[date].fixtures.push(fixture);
+                    return acc;
+                }, {});
+
+                for (const date in groups) {
+                    const firstKickoff = new Date(groups[date].fixtures[0].kickoffTime);
+                    groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
+                    groups[date].hardDeadline = new Date(firstKickoff.getTime());
+                }
+                setGroupedFixtures(groups);
+                
                 setLeaderboard(fetchedLeaderboard);
 
                 const initialPreds = {};
@@ -346,10 +366,6 @@ export default function App() {
                     usedInSeason: userData.chips.jokerUsedInSeason || false
                 });
 
-                if (fetchedFixtures.length > 0) {
-                    const deadline = new Date(new Date(fetchedFixtures[0].kickoffTime).getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
-                    setGameweekDeadline(deadline);
-                }
             } catch (error) {
                 console.error("Error loading game data:", error);
                 setMessage({type: 'error', text: 'Could not load game data.'});
@@ -468,6 +484,8 @@ export default function App() {
             setMessage({type: 'error', text: 'Failed to reveal scores.'});
         }
     };
+
+    const hasJokerBeenPlayedThisWeek = useMemo(() => !!joker.fixtureId, [joker.fixtureId]);
     
     if (isLoading) {
         return <div className="bg-gray-100 min-h-screen flex items-center justify-center"><p className="text-2xl font-semibold">Loading...</p></div>;
@@ -519,8 +537,27 @@ export default function App() {
                         <div className="bg-white p-6 rounded-lg shadow-lg">
                              <h2 className="text-2xl font-semibold mb-6 border-b pb-4">Gameweek 1</h2>
                              {message.text && <div className={`text-center mb-4 font-semibold ${message.type === 'error' ? 'text-red-500' : 'text-blue-500'}`}>{message.text}</div>}
-                             <div className="space-y-6">
-                               {fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isDeadlinePassed || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={false} isJokerUsedInSeason={joker.usedInSeason} />)}
+                             <div className="space-y-8">
+                                {Object.entries(groupedFixtures).map(([date, group]) => {
+                                    const isDayLocked = currentTime > group.hardDeadline;
+                                    const isGracePeriod = currentTime > group.deadline && !isDayLocked;
+                                    return (
+                                        <div key={date}>
+                                            <div className="flex justify-between items-center mb-4 p-2 bg-gray-100 rounded-md">
+                                                <h3 className="text-xl font-bold">{date}</h3>
+                                                <Countdown deadline={group.deadline} />
+                                            </div>
+                                            {isGracePeriod && !hasSubmitted && (
+                                                <div className="text-center mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                                                    <p className="font-semibold text-yellow-800">The deadline has passed, but you are in a 1-hour grace period. Any submissions will receive a 3-point penalty.</p>
+                                                </div>
+                                            )}
+                                            <div className="space-y-6">
+                                                {group.fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isDayLocked || hasSubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
                              </div>
                         </div>
                     </div>
