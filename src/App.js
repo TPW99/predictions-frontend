@@ -410,32 +410,40 @@ export default function App() {
     };
 
     const handleRegister = async (formData) => {
+        console.log("Registering with:", formData);
         try {
             const response = await api.register(formData);
             const data = await response.json();
             if (response.ok) {
+                console.log("Registration successful");
                 setAuthMessage({ type: 'success', text: data.message + ' Please log in.' });
                 setIsLoginView(true);
             } else {
+                console.log("Registration failed:", data.message);
                 setAuthMessage({ type: 'error', text: data.message });
             }
         } catch (error) {
+            console.error("Registration network error:", error);
             setAuthMessage({ type: 'error', text: 'Could not connect to the server.' });
         }
     };
 
     const handleLogin = async (formData) => {
+        console.log("Logging in with:", formData.email);
         try {
             const response = await api.login(formData);
             const data = await response.json();
             if (response.ok) {
+                console.log("Login successful, token received.");
                 localStorage.setItem('token', data.token);
                 setToken(data.token);
                 setAuthMessage('');
             } else {
+                console.log("Login failed:", data.message);
                 setAuthMessage({ type: 'error', text: data.message });
             }
         } catch (error) {
+            console.error("Login network error:", error);
             setAuthMessage({ type: 'error', text: 'Could not connect to the server.' });
         }
     };
