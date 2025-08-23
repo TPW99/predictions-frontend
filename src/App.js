@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- Config ---
 // PASTE YOUR LIVE RENDER URL HERE
-const BACKEND_URL = 'https://your-backend-url.onrender.com'; 
+const BACKEND_URL = 'https://predictions-backend-api.onrender.com'; 
 
 // --- Child Components ---
 
