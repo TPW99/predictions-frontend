@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- Config ---
 // PASTE YOUR LIVE RENDER URL HERE
-const BACKEND_URL = 'https://predictions-backend-api.onrender.com'; 
+const BACKEND_URL = 'https://your-backend-url.onrender.com'; 
 
 // --- Data for Dropdowns ---
 const premierLeagueTeams = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Leeds United", "Liverpool", "Manchester City", "Manchester United", "Newcastle United", "Nottingham Forest", "Sunderland", "Tottenham Hotspur", "West Ham United", "Wolverhampton Wanderers"];
@@ -453,19 +453,52 @@ export default function App() {
     };
 
     const handleSaveProphecies = async (propheciesData) => {
-        // ... (logic from previous versions)
+        const finalProphecies = { ...propheciesData };
+        if (finalProphecies.goldenBoot === 'Other (Please Specify)') {
+            finalProphecies.goldenBoot = finalProphecies.goldenBootOther;
+        }
+        delete finalProphecies.goldenBootOther;
+
+        try {
+            await api.saveProphecies({ prophecies: finalProphecies });
+            setProphecies(propheciesData);
+            setPropheciesLocked(true);
+            setShowPropheciesModal(false);
+            setMessage({ type: 'success', text: 'Your season prophecies have been locked in!' });
+        } catch(error) {
+            console.error("Error saving prophecies:", error);
+            setMessage({type: 'error', text: 'Failed to save prophecies.'});
+        }
     };
 
     const handleSubmit = async () => {
-        // ... (logic from previous versions)
+        try {
+            await api.savePredictions({ predictions, jokerFixtureId: joker.fixtureId });
+            setHasSubmitted(true);
+            if (joker.fixtureId) {
+                setJoker(prev => ({ ...prev, usedInSeason: true }));
+            }
+            setMessage({ type: 'success', text: `Predictions submitted! Good luck!` });
+        } catch(error) {
+            console.error("Error saving predictions:", error);
+            setMessage({type: 'error', text: 'Failed to save predictions.'});
+        }
     };
     
     const handleEdit = () => {
-        // ... (logic from previous versions)
+        setHasSubmitted(false);
+        setMessage({ type: 'info', text: 'You can now edit your predictions.' });
     };
 
     const handleReveal = async () => {
-        // ... (logic from previous versions)
+        try {
+            const result = await api.scoreGameweek();
+            setMessage({ type: 'success', text: result.message });
+            await loadGameData(token, currentGameweek);
+        } catch(error) {
+            console.error("Error revealing scores:", error);
+            setMessage({type: 'error', text: 'Failed to reveal scores.'});
+        }
     };
     
     if (isLoading) {
