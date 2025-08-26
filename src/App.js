@@ -353,14 +353,12 @@ export default function App() {
                 setLeaderboard(fetchedLeaderboard);
 
                 const initialPreds = {};
-                // --- UPDATED: Load all predictions from user data ---
                 userData.predictions.forEach(p => {
                     initialPreds[p.fixtureId] = {
                         homeScore: p.homeScore,
                         awayScore: p.awayScore
                     };
                 });
-                 // Ensure there are empty slots for the current gameweek's fixtures if they haven't been predicted yet
                 fetchedFixtures.forEach(f => {
                     if (!initialPreds[f._id]) {
                          initialPreds[f._id] = { homeScore: '', awayScore: '' };
