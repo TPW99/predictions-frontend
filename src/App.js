@@ -95,7 +95,7 @@ const Countdown = ({ deadline, onDeadlinePass }) => {
 
 const Modal = ({ children, onClose }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md relative">
+        <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-lg relative">
             <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
             {children}
         </div>
@@ -214,6 +214,36 @@ const Fixture = ({ fixture, prediction, onPredictionChange, isLocked, joker, onJ
     );
 };
 
+// --- NEW Component for Prediction History ---
+const PredictionHistoryModal = ({ historyData, onClose }) => {
+    if (!historyData) return null;
+
+    return (
+        <Modal onClose={onClose}>
+            <h2 className="text-2xl font-bold text-center mb-6">{historyData.userName}'s Predictions</h2>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+                {historyData.history.length === 0 ? (
+                    <p className="text-center text-gray-500">No predictions to show for this gameweek.</p>
+                ) : (
+                    historyData.history.map(({ fixture, prediction }) => (
+                        <div key={fixture._id} className="bg-gray-100 p-3 rounded-md">
+                            <p className="font-semibold text-center">{fixture.homeTeam} vs {fixture.awayTeam}</p>
+                            <p className="text-center">
+                                Predicted: {prediction ? `${prediction.homeScore} - ${prediction.awayScore}` : 'N/A'}
+                            </p>
+                            {fixture.actualScore && fixture.actualScore.home !== null && (
+                                <p className="text-center font-bold text-green-700">
+                                    Actual: {fixture.actualScore.home} - {fixture.actualScore.away}
+                                </p>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
+        </Modal>
+    );
+};
+
 
 // --- Main App Component ---
 
@@ -238,6 +268,8 @@ export default function App() {
     const [propheciesLocked, setPropheciesLocked] = useState(false);
     const [joker, setJoker] = useState({ fixtureId: null, usedInSeason: false });
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [historyData, setHistoryData] = useState(null);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000 * 30);
@@ -282,6 +314,13 @@ export default function App() {
         fetchLeaderboard: async () => {
             const response = await fetch(`${BACKEND_URL}/api/leaderboard`);
             if (!response.ok) throw new Error('Failed to fetch leaderboard');
+            return await response.json();
+        },
+        fetchPredictionHistory: async (userId, gameweek) => {
+            const response = await fetch(`${BACKEND_URL}/api/predictions/${userId}/${gameweek}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch prediction history');
             return await response.json();
         },
         savePredictions: async (predictionsToSave) => {
@@ -352,14 +391,19 @@ export default function App() {
                 setLeaderboard(fetchedLeaderboard);
 
                 const initialPreds = {};
-                fetchedFixtures.forEach(f => {
-                    const savedPrediction = userData.predictions.find(p => p.fixtureId === f._id);
-                    initialPreds[f._id] = {
-                        homeScore: savedPrediction ? savedPrediction.homeScore : '',
-                        awayScore: savedPrediction ? savedPrediction.awayScore : ''
+                userData.predictions.forEach(p => {
+                    initialPreds[p.fixtureId] = {
+                        homeScore: p.homeScore,
+                        awayScore: p.awayScore
                     };
                 });
+                fetchedFixtures.forEach(f => {
+                    if (!initialPreds[f._id]) {
+                         initialPreds[f._id] = { homeScore: '', awayScore: '' };
+                    }
+                });
                 setPredictions(initialPreds);
+
                 if (userData.predictions && userData.predictions.length > 0) {
                     setHasSubmitted(true);
                 }
@@ -500,6 +544,17 @@ export default function App() {
             setMessage({type: 'error', text: 'Failed to reveal scores.'});
         }
     };
+
+    const handlePlayerClick = async (playerId) => {
+        try {
+            const data = await api.fetchPredictionHistory(playerId, currentGameweek);
+            setHistoryData(data);
+            setShowHistoryModal(true);
+        } catch (error) {
+            console.error("Error fetching prediction history:", error);
+            setMessage({ type: 'error', text: 'Could not load prediction history.' });
+        }
+    };
     
     if (isLoading) {
         return <div className="bg-gray-100 min-h-screen flex items-center justify-center"><p className="text-2xl font-semibold">Loading...</p></div>;
@@ -583,7 +638,7 @@ export default function App() {
                                 <div key={player._id || index} className={`flex items-center justify-between p-3 rounded-lg ${player.name === user?.name ? 'bg-blue-100' : 'bg-gray-50'}`}>
                                     <div className="flex items-center">
                                         <span className="font-bold text-lg mr-4 w-6 text-center">{index + 1}</span>
-                                        <p className="font-semibold">{player.name}</p>
+                                        <button onClick={() => handlePlayerClick(player._id)} className="font-semibold hover:underline">{player.name}</button>
                                     </div>
                                     <p className="font-bold text-lg">{player.score} pts</p>
                                 </div>
@@ -596,6 +651,9 @@ export default function App() {
                 <Modal onClose={() => setShowPropheciesModal(false)}>
                     <SeasonProphecies onSave={handleSaveProphecies} prophecies={prophecies} isLocked={propheciesLocked} />
                 </Modal>
+            )}
+            {showHistoryModal && (
+                <PredictionHistoryModal historyData={historyData} onClose={() => setShowHistoryModal(false)} />
             )}
         </div>
     );
