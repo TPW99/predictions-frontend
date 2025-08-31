@@ -213,17 +213,30 @@ const Fixture = ({ fixture, prediction, onPredictionChange, isLocked, joker, onJ
     );
 };
 
-const PredictionHistoryModal = ({ historyData, onClose }) => {
+const PredictionHistoryModal = ({ historyData, onClose, gameweek }) => {
     if (!historyData) return null;
+    const { userName, history, summary } = historyData;
 
     return (
         <Modal onClose={onClose}>
-            <h2 className="text-2xl font-bold text-center mb-6">{historyData.userName}'s Predictions</h2>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-                {historyData.history.length === 0 ? (
+            <h2 className="text-2xl font-bold text-center mb-4">{userName}'s Gameweek {gameweek}</h2>
+            
+            {summary && (
+                 <div className="text-center bg-gray-50 p-4 rounded-lg mb-6">
+                    <p className="text-lg">Points Gained: <span className="font-bold text-green-600">{summary.points}</span></p>
+                    {summary.penalty > 0 && (
+                         <p className="text-lg">Late Penalty: <span className="font-bold text-red-600">-{summary.penalty}</span></p>
+                    )}
+                    <p className="text-xl font-bold pt-2">Total for week: {summary.points - summary.penalty}</p>
+                 </div>
+            )}
+
+            <h3 className="text-xl font-bold text-center mb-4">Predictions</h3>
+            <div className="space-y-4 max-h-80 overflow-y-auto">
+                {history.length === 0 ? (
                     <p className="text-center text-gray-500">No predictions to show for this gameweek.</p>
                 ) : (
-                    historyData.history.map(({ fixture, prediction }) => (
+                    history.map(({ fixture, prediction }) => (
                         <div key={fixture._id} className="bg-gray-100 p-3 rounded-md">
                             <p className="font-semibold text-center">{fixture.homeTeam} vs {fixture.awayTeam}</p>
                             <p className="text-center">
@@ -711,7 +724,7 @@ export default function App() {
                 </Modal>
             )}
             {showHistoryModal && (
-                <PredictionHistoryModal historyData={historyData} onClose={() => setShowHistoryModal(false)} />
+                <PredictionHistoryModal historyData={historyData} onClose={() => setShowHistoryModal(false)} gameweek={currentGameweek} />
             )}
              {showSummaryModal && (
                 <GameweekSummaryModal summaryData={summaryData} onClose={() => setShowSummaryModal(false)} />
@@ -719,4 +732,3 @@ export default function App() {
         </div>
     );
 }
-
