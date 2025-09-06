@@ -212,12 +212,24 @@ const Fixture = ({ fixture, prediction, onPredictionChange, isLocked, joker, onJ
 
 const PredictionHistoryModal = ({ historyData, onClose, gameweek }) => {
     if (!historyData) return null;
-    const { userName, history } = historyData;
+    const { userName, history, summary } = historyData;
 
     return (
         <Modal onClose={onClose}>
-            <h2 className="text-2xl font-bold text-center mb-6">{userName}'s Predictions for GW{gameweek}</h2>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
+            <h2 className="text-2xl font-bold text-center mb-4">{userName}'s Gameweek {gameweek}</h2>
+            
+            {summary && (
+                 <div className="text-center bg-gray-50 p-4 rounded-lg mb-6">
+                    <p className="text-lg">Points Gained: <span className="font-bold text-green-600">{summary.points}</span></p>
+                    {summary.penalty > 0 && (
+                         <p className="text-lg">Late Penalty: <span className="font-bold text-red-600">-{summary.penalty}</span></p>
+                    )}
+                    <p className="text-xl font-bold pt-2">Total for week: {summary.points - summary.penalty}</p>
+                 </div>
+            )}
+
+            <h3 className="text-xl font-bold text-center mb-4">Predictions</h3>
+            <div className="space-y-4 max-h-80 overflow-y-auto">
                 {history.length === 0 ? (
                     <p className="text-center text-gray-500">No predictions to show for this gameweek.</p>
                 ) : (
@@ -240,6 +252,23 @@ const PredictionHistoryModal = ({ historyData, onClose, gameweek }) => {
     );
 };
 
+const GameweekSummaryModal = ({ summaryData, onClose }) => {
+    if (!summaryData) return null;
+    
+    return (
+        <Modal onClose={onClose}>
+             <h2 className="text-2xl font-bold text-center mb-6">Gameweek {summaryData.gameweek} Summary</h2>
+             <div className="text-center space-y-2">
+                <p className="text-lg">Points Gained: <span className="font-bold text-green-600">{summaryData.points}</span></p>
+                {summaryData.penalty > 0 && (
+                     <p className="text-lg">Late Penalty: <span className="font-bold text-red-600">-{summaryData.penalty}</span></p>
+                )}
+                <p className="text-xl font-bold pt-4">Total for week: {summaryData.points - summaryData.penalty}</p>
+             </div>
+        </Modal>
+    );
+};
+
 
 // --- Main App Component ---
 
@@ -256,16 +285,18 @@ export default function App() {
     const [currentGameweek, setCurrentGameweek] = useState(null);
     const [groupedFixtures, setGroupedFixtures] = useState({});
     const [leaderboard, setLeaderboard] = useState([]);
-    const [predictions, setPredictions] = useState({});
+    const [allPredictions, setAllPredictions] = useState({});
     const [message, setMessage] = useState('');
-    const [hasSubmittedForDay, setHasSubmittedForDay] = useState({});
     const [showPropheciesModal, setShowPropheciesModal] = useState(false);
     const [prophecies, setProphecies] = useState({ winner: '', relegation: ['', '', ''], goldenBoot: '', firstSacking: '', goldenBootOther: '' });
     const [propheciesLocked, setPropheciesLocked] = useState(false);
     const [joker, setJoker] = useState({ fixtureId: null, usedInSeason: false });
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [historyData, setHistoryData] = useState(null);
-
+    const [hasSubmittedForDay, setHasSubmittedForDay] = useState({});
+    const [showSummaryModal, setShowSummaryModal] = useState(false);
+    const [summaryData, setSummaryData] = useState(null);
+    
     const api = useMemo(() => ({
         register: async (userData) => {
             const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
@@ -338,6 +369,13 @@ export default function App() {
             });
             if (!response.ok) throw new Error('Failed to score gameweek');
             return await response.json();
+        },
+        fetchSummary: async (gameweek) => {
+            const response = await fetch(`${BACKEND_URL}/api/summary/${gameweek}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch summary');
+            return await response.json();
         }
     }), [token]);
     
@@ -389,14 +427,8 @@ export default function App() {
                         awayScore: p.awayScore
                     };
                 });
-                fetchedFixtures.forEach(f => {
-                    if (!initialPreds[f._id]) {
-                         initialPreds[f._id] = { homeScore: '', awayScore: '' };
-                    }
-                });
-                setPredictions(initialPreds);
+                setAllPredictions(initialPreds);
 
-                 // Check submission status for each day
                 const submissionStatus = {};
                 Object.entries(groups).forEach(([date, group]) => {
                     const dayHasPrediction = group.fixtures.some(f => 
@@ -483,7 +515,7 @@ export default function App() {
     };
     
     const handlePredictionChange = (fixtureId, team, value) => {
-        setPredictions(prev => ({ ...prev, [fixtureId]: { ...prev[fixtureId], [team]: value } }));
+        setAllPredictions(prev => ({ ...prev, [fixtureId]: { ...prev[fixtureId], [team]: value } }));
     };
 
     const handleJoker = (fixtureId) => {
@@ -516,7 +548,7 @@ export default function App() {
     const handleSubmit = async (date) => {
         try {
             const predictionsForDay = groupedFixtures[date].fixtures.reduce((acc, f) => {
-                acc[f._id] = predictions[f._id];
+                acc[f._id] = allPredictions[f._id];
                 return acc;
             }, {});
 
@@ -559,6 +591,16 @@ export default function App() {
             setMessage({ type: 'error', text: 'Could not load prediction history.' });
         }
     };
+
+    const handleViewSummary = async () => {
+        try {
+            const data = await api.fetchSummary(currentGameweek);
+            setSummaryData(data);
+            setShowSummaryModal(true);
+        } catch (error) {
+            setMessage({ type: 'error', text: 'Could not load gameweek summary.' });
+        }
+    };
     
     if (isLoading) {
         return <div className="bg-gray-100 min-h-screen flex items-center justify-center"><p className="text-2xl font-semibold">Loading...</p></div>;
@@ -581,7 +623,8 @@ export default function App() {
         );
     }
     
-    const hasJokerBeenPlayedThisWeek = Object.values(groupedFixtures).flatMap(g => g.fixtures).some(f => f._id === joker.fixtureId);
+    const currentFixtures = Object.values(groupedFixtures).flatMap(g => g.fixtures);
+    const hasJokerBeenPlayedThisWeek = currentFixtures.some(f => f._id === joker.fixtureId);
 
     return (
         <div className="bg-gray-100 text-gray-800 font-sans min-h-screen">
@@ -612,6 +655,11 @@ export default function App() {
                                 <h2 className="text-2xl font-semibold">Gameweek {currentGameweek}</h2>
                                 <button onClick={() => handleGameweekChange(1)} disabled={gameweeks.length === 0 || currentGameweek >= gameweeks[gameweeks.length - 1]} className="px-4 py-2 bg-gray-200 rounded-md disabled:opacity-50">Next &gt;</button>
                              </div>
+                             {currentFixtures.length > 0 && new Date() > new Date(currentFixtures[0].kickoffTime) && (
+                                 <div className="text-center mb-4">
+                                    <button onClick={handleViewSummary} className="bg-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-600">View Gameweek {currentGameweek} Summary</button>
+                                 </div>
+                             )}
                              {message.text && <div className={`text-center mb-4 font-semibold ${message.type === 'error' ? 'text-red-500' : 'text-blue-500'}`}>{message.text}</div>}
                              <div className="space-y-8">
                                 {Object.entries(groupedFixtures).map(([date, group]) => {
@@ -626,7 +674,7 @@ export default function App() {
                                                 <Countdown deadline={deadlineDate} />
                                             </div>
                                             <div className="space-y-6">
-                                                {group.fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={predictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isLocked || daySubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
+                                                {group.fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={allPredictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isLocked || daySubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
                                             </div>
                                              <div className="text-center mt-4">
                                                 {!isLocked && (
@@ -667,6 +715,9 @@ export default function App() {
             )}
             {showHistoryModal && (
                 <PredictionHistoryModal historyData={historyData} onClose={() => setShowHistoryModal(false)} gameweek={currentGameweek} />
+            )}
+             {showSummaryModal && (
+                <GameweekSummaryModal summaryData={summaryData} onClose={() => setShowSummaryModal(false)} />
             )}
         </div>
     );
