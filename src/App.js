@@ -551,8 +551,15 @@ export default function App() {
                 acc[f._id] = allPredictions[f._id];
                 return acc;
             }, {});
+            
+            const deadline = groupedFixtures[date].deadline;
 
-            await api.savePredictions({ predictions: predictionsForDay, jokerFixtureId: joker.fixtureId });
+            await api.savePredictions({ 
+                predictions: predictionsForDay, 
+                jokerFixtureId: joker.fixtureId,
+                submissionTime: new Date(),
+                deadline
+            });
             setHasSubmittedForDay(prev => ({ ...prev, [date]: true }));
 
             if (joker.fixtureId && groupedFixtures[date].fixtures.some(f => f._id === joker.fixtureId)) {
