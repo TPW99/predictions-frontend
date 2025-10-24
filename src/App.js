@@ -407,13 +407,14 @@ export default function App() {
 
                 const groups = fetchedFixtures.reduce((acc, fixture) => {
                     const date = new Date(fixture.kickoffTime).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                    if (!acc[date]) acc[date] = { fixtures: [], deadline: null };
+                    if (!acc[date]) acc[date] = { fixtures: [], deadline: null, kickoff: null };
                     acc[date].fixtures.push(fixture);
                     return acc;
                 }, {});
 
                 for (const date in groups) {
                     const firstKickoff = new Date(groups[date].fixtures[0].kickoffTime);
+                    groups[date].kickoff = firstKickoff;
                     groups[date].deadline = new Date(firstKickoff.getTime() - DEADLINE_HOUR_OFFSET * 60 * 60 * 1000);
                 }
                 setGroupedFixtures(groups);
@@ -551,8 +552,15 @@ export default function App() {
                 acc[f._id] = allPredictions[f._id];
                 return acc;
             }, {});
+            
+            const deadline = groupedFixtures[date].deadline;
 
-            await api.savePredictions({ predictions: predictionsForDay, jokerFixtureId: joker.fixtureId });
+            await api.savePredictions({ 
+                predictions: predictionsForDay, 
+                jokerFixtureId: joker.fixtureId,
+                submissionTime: new Date(),
+                deadline
+            });
             setHasSubmittedForDay(prev => ({ ...prev, [date]: true }));
 
             if (joker.fixtureId && groupedFixtures[date].fixtures.some(f => f._id === joker.fixtureId)) {
@@ -664,7 +672,11 @@ export default function App() {
                              <div className="space-y-8">
                                 {Object.entries(groupedFixtures).map(([date, group]) => {
                                     const deadlineDate = new Date(group.deadline);
-                                    const isLocked = new Date() > deadlineDate;
+                                    const kickoffDate = new Date(group.kickoff);
+                                    
+                                    const isDeadlinePassed = new Date() > deadlineDate;
+                                    const isMatchStarted = new Date() > kickoffDate;
+                                    
                                     const daySubmitted = hasSubmittedForDay[date];
 
                                     return (
@@ -674,10 +686,10 @@ export default function App() {
                                                 <Countdown deadline={deadlineDate} />
                                             </div>
                                             <div className="space-y-6">
-                                                {group.fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={allPredictions[f._id] || {}} onPredictionChange={handlePredictionChange} isLocked={isLocked || daySubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
+                                                {group.fixtures.map(f => <Fixture key={f._id} fixture={f} prediction={allPredictions[f._id] || {homeScore: '', awayScore: ''}} onPredictionChange={handlePredictionChange} isLocked={isDeadlinePassed || daySubmitted} joker={{isActive: joker.fixtureId === f._id}} onJoker={handleJoker} hasJokerBeenPlayedThisWeek={hasJokerBeenPlayedThisWeek} isJokerUsedInSeason={joker.usedInSeason} />)}
                                             </div>
                                              <div className="text-center mt-4">
-                                                {!isLocked && (
+                                                {!isMatchStarted && (
                                                     <button onClick={() => daySubmitted ? handleEdit(date) : handleSubmit(date)} className={`${daySubmitted ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg transition duration-300 shadow-md`}>
                                                         {daySubmitted ? 'Edit' : 'Submit'}
                                                     </button>
