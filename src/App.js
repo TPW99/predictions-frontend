@@ -692,7 +692,7 @@ export default function App() {
                                     <button onClick={handleViewSummary} className="bg-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-600">View Gameweek {currentGameweek} Summary</button>
                                  </div>
                              )}
-                             {message.text && <div className={`text-center mb-4 font-semibold ${message.type === 'error' ? 'text-red-500' : 'text-blue-500'}`}>{message.text}</div>}
+                             {message.text && <div className={`text-center mb-4 font-semibold ${message.type === 'error' ? 'text-red-500' : 'text-green-500'}`}>{message.text}</div>}
                              <div className="space-y-8">
                                 {Object.entries(groupedFixtures).map(([date, group]) => {
                                     const deadlineDate = new Date(group.deadline);
