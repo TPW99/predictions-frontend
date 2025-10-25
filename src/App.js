@@ -548,20 +548,31 @@ export default function App() {
 
     const handleSubmit = async (date) => {
         try {
-            const predictionsForDay = groupedFixtures[date].fixtures.reduce((acc, f) => {
-                acc[f._id] = allPredictions[f._id];
-                return acc;
-            }, {});
-            
+            // --- THIS IS THE FIX ---
+            // Instead of just sending predictions for the day,
+            // we now send ALL predictions for the current gameweek.
+            const predictionsForGameweek = {};
+            Object.values(groupedFixtures).flatMap(g => g.fixtures).forEach(f => {
+                if (allPredictions[f._id]) {
+                    predictionsForGameweek[f._id] = allPredictions[f._id];
+                }
+            });
+
             const deadline = groupedFixtures[date].deadline;
 
             await api.savePredictions({ 
-                predictions: predictionsForDay, 
+                predictions: predictionsForGameweek, 
                 jokerFixtureId: joker.fixtureId,
                 submissionTime: new Date(),
                 deadline
             });
-            setHasSubmittedForDay(prev => ({ ...prev, [date]: true }));
+            
+            // Mark all days in this gameweek as submitted
+            const newHasSubmitted = { ...hasSubmittedForDay };
+            Object.keys(groupedFixtures).forEach(d => {
+                newHasSubmitted[d] = true;
+            });
+            setHasSubmittedForDay(newHasSubmitted);
 
             if (joker.fixtureId && groupedFixtures[date].fixtures.some(f => f._id === joker.fixtureId)) {
                 setJoker(prev => ({ ...prev, usedInSeason: true }));
@@ -574,7 +585,12 @@ export default function App() {
     };
     
     const handleEdit = (date) => {
-        setHasSubmittedForDay(prev => ({ ...prev, [date]: false }));
+        // Allow editing all days in the gameweek
+        const newHasSubmitted = { ...hasSubmittedForDay };
+        Object.keys(groupedFixtures).forEach(d => {
+            newHasSubmitted[d] = false;
+        });
+        setHasSubmittedForDay(newHasSubmitted);
         setMessage({ type: 'info', text: `You can now edit your predictions for ${date}.` });
     };
 
@@ -634,6 +650,14 @@ export default function App() {
     const currentFixtures = Object.values(groupedFixtures).flatMap(g => g.fixtures);
     const hasJokerBeenPlayedThisWeek = currentFixtures.some(f => f._id === joker.fixtureId);
 
+    // Find the first kickoff time for the *entire* gameweek to check if it's in the past
+    const firstGameweekKickoff = currentFixtures.length > 0 
+        ? new Date(currentFixtures.reduce((earliest, f) => {
+            const fTime = new Date(f.kickoffTime).getTime();
+            return fTime < earliest ? fTime : earliest;
+        }, new Date(currentFixtures[0].kickoffTime).getTime()))
+        : null;
+
     return (
         <div className="bg-gray-100 text-gray-800 font-sans min-h-screen">
             <div className="container mx-auto p-4 md:p-8">
@@ -663,7 +687,7 @@ export default function App() {
                                 <h2 className="text-2xl font-semibold">Gameweek {currentGameweek}</h2>
                                 <button onClick={() => handleGameweekChange(1)} disabled={gameweeks.length === 0 || currentGameweek >= gameweeks[gameweeks.length - 1]} className="px-4 py-2 bg-gray-200 rounded-md disabled:opacity-50">Next &gt;</button>
                              </div>
-                             {currentFixtures.length > 0 && new Date() > new Date(currentFixtures[0].kickoffTime) && (
+                             {firstGameweekKickoff && new Date() > firstGameweekKickoff && (
                                  <div className="text-center mb-4">
                                     <button onClick={handleViewSummary} className="bg-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-600">View Gameweek {currentGameweek} Summary</button>
                                  </div>
