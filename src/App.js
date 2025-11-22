@@ -548,7 +548,7 @@ export default function App() {
 
     const handleSubmit = async (date) => {
         try {
-            // Filter to send ONLY predictions for the fixtures in the selected group (day)
+            // FIX: Only send predictions for the specific date's fixtures
             const predictionsForDay = {};
             groupedFixtures[date].fixtures.forEach(f => {
                 if (allPredictions[f._id]) {
@@ -565,7 +565,7 @@ export default function App() {
                 deadline
             });
             
-            // Update submission status ONLY for the specific day
+            // FIX: Only update the submitted state for this specific date
             setHasSubmittedForDay(prev => ({ ...prev, [date]: true }));
 
             if (joker.fixtureId && groupedFixtures[date].fixtures.some(f => f._id === joker.fixtureId)) {
@@ -579,7 +579,7 @@ export default function App() {
     };
     
     const handleEdit = (date) => {
-        // Allow editing ONLY for the specific day
+        // FIX: Only unlock this specific date
         setHasSubmittedForDay(prev => ({ ...prev, [date]: false }));
         setMessage({ type: 'info', text: `You can now edit your predictions for ${date}.` });
     };
@@ -706,7 +706,6 @@ export default function App() {
                                                         fixture={f} 
                                                         prediction={allPredictions[f._id] || {homeScore: '', awayScore: ''}} 
                                                         onPredictionChange={handlePredictionChange} 
-                                                        // FIX: Lock ONLY if match started OR (submitted AND deadline passed)
                                                         isLocked={isMatchStarted || daySubmitted} 
                                                         joker={{isActive: joker.fixtureId === f._id}} 
                                                         onJoker={handleJoker} 
