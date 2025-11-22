@@ -548,7 +548,6 @@ export default function App() {
 
     const handleSubmit = async (date) => {
         try {
-            // FIX: Only send predictions for the specific date's fixtures
             const predictionsForDay = {};
             groupedFixtures[date].fixtures.forEach(f => {
                 if (allPredictions[f._id]) {
@@ -565,7 +564,7 @@ export default function App() {
                 deadline
             });
             
-            // FIX: Only update the submitted state for this specific date
+            // FIX: Only update the submitted state for this specific date, NO LOOPS
             setHasSubmittedForDay(prev => ({ ...prev, [date]: true }));
 
             if (joker.fixtureId && groupedFixtures[date].fixtures.some(f => f._id === joker.fixtureId)) {
@@ -579,7 +578,7 @@ export default function App() {
     };
     
     const handleEdit = (date) => {
-        // FIX: Only unlock this specific date
+        // FIX: Only unlock this specific date, NO LOOPS
         setHasSubmittedForDay(prev => ({ ...prev, [date]: false }));
         setMessage({ type: 'info', text: `You can now edit your predictions for ${date}.` });
     };
@@ -706,7 +705,8 @@ export default function App() {
                                                         fixture={f} 
                                                         prediction={allPredictions[f._id] || {homeScore: '', awayScore: ''}} 
                                                         onPredictionChange={handlePredictionChange} 
-                                                        // FIX: Lock ONLY if match started OR (submitted AND deadline passed)
+                                                        // FIX: Lock if match started OR (submitted AND grace period not active)
+                                                        // Note: if daySubmitted is false (edit mode), it unlocks even if deadline passed (as long as match hasn't started)
                                                         isLocked={isMatchStarted || daySubmitted} 
                                                         joker={{isActive: joker.fixtureId === f._id}} 
                                                         onJoker={handleJoker} 
