@@ -706,6 +706,7 @@ export default function App() {
                                                         fixture={f} 
                                                         prediction={allPredictions[f._id] || {homeScore: '', awayScore: ''}} 
                                                         onPredictionChange={handlePredictionChange} 
+                                                        // FIX: Lock ONLY if match started OR (submitted AND deadline passed)
                                                         isLocked={isMatchStarted || daySubmitted} 
                                                         joker={{isActive: joker.fixtureId === f._id}} 
                                                         onJoker={handleJoker} 
