@@ -548,31 +548,23 @@ export default function App() {
 
     const handleSubmit = async (date) => {
         try {
-            // --- THIS IS THE FIX ---
-            // Instead of just sending predictions for the day,
-            // we now send ALL predictions for the current gameweek.
-            const predictionsForGameweek = {};
-            Object.values(groupedFixtures).flatMap(g => g.fixtures).forEach(f => {
+            const predictionsForDay = {};
+            groupedFixtures[date].fixtures.forEach(f => {
                 if (allPredictions[f._id]) {
-                    predictionsForGameweek[f._id] = allPredictions[f._id];
+                    predictionsForDay[f._id] = allPredictions[f._id];
                 }
             });
 
             const deadline = groupedFixtures[date].deadline;
 
             await api.savePredictions({ 
-                predictions: predictionsForGameweek, 
+                predictions: predictionsForDay, 
                 jokerFixtureId: joker.fixtureId,
                 submissionTime: new Date(),
                 deadline
             });
             
-            // Mark all days in this gameweek as submitted
-            const newHasSubmitted = { ...hasSubmittedForDay };
-            Object.keys(groupedFixtures).forEach(d => {
-                newHasSubmitted[d] = true;
-            });
-            setHasSubmittedForDay(newHasSubmitted);
+            setHasSubmittedForDay(prev => ({ ...prev, [date]: true }));
 
             if (joker.fixtureId && groupedFixtures[date].fixtures.some(f => f._id === joker.fixtureId)) {
                 setJoker(prev => ({ ...prev, usedInSeason: true }));
@@ -585,12 +577,7 @@ export default function App() {
     };
     
     const handleEdit = (date) => {
-        // Allow editing all days in the gameweek
-        const newHasSubmitted = { ...hasSubmittedForDay };
-        Object.keys(groupedFixtures).forEach(d => {
-            newHasSubmitted[d] = false;
-        });
-        setHasSubmittedForDay(newHasSubmitted);
+        setHasSubmittedForDay(prev => ({ ...prev, [date]: false }));
         setMessage({ type: 'info', text: `You can now edit your predictions for ${date}.` });
     };
 
@@ -716,7 +703,6 @@ export default function App() {
                                                         fixture={f} 
                                                         prediction={allPredictions[f._id] || {homeScore: '', awayScore: ''}} 
                                                         onPredictionChange={handlePredictionChange} 
-                                                        // FIX: Lock ONLY if match started OR (submitted AND deadline passed)
                                                         isLocked={isMatchStarted || daySubmitted} 
                                                         joker={{isActive: joker.fixtureId === f._id}} 
                                                         onJoker={handleJoker} 
